@@ -1,6 +1,6 @@
 import {
   Area,
-  AreaChart,
+  ComposedChart,
   CartesianGrid,
   Legend,
   Line,
@@ -55,7 +55,7 @@ export function TelemetryCharts({ tick }: { tick: number }) {
 
           <TabsContent value="power" className="h-[320px] pt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series}>
+              <ComposedChart data={series}>
                 <defs>
                   <linearGradient id="pw" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.5} />
@@ -84,7 +84,7 @@ export function TelemetryCharts({ tick }: { tick: number }) {
                   dot={false}
                   strokeWidth={2}
                 />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </TabsContent>
 
