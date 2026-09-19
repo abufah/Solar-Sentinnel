@@ -115,6 +115,8 @@ export function buildSnapshot(tick: number): Snapshot {
 
   const healthScore = Math.round(components.reduce((a, c) => a + c.health, 0) / components.length);
 
+  const stringBLoss = strings[1]?.shadingLossPct ?? 0;
+
   const alerts: Alert[] = [
     {
       id: "a1",
@@ -128,7 +130,7 @@ export function buildSnapshot(tick: number): Snapshot {
       id: "a2",
       severity: "warning",
       title: "Partial shading — String B (panels B-3, B-4)",
-      detail: `Sustained shading pattern detected, ${strings[1].shadingLossPct}% string loss during peak window.`,
+      detail: `Sustained shading pattern detected, ${stringBLoss}% string loss during peak window.`,
       action: "Trim vegetation / verify new obstruction near south-east edge.",
       at: "Today 10:15",
     },
