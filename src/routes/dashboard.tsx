@@ -122,31 +122,32 @@ function Dashboard() {
 
         <SummaryCards snap={snap} />
 
+        <ArrayLayout snap={snap} />
+
         <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-          <ArrayLayout snap={snap} />
           <div className="space-y-6">
             <TelemetryCharts tick={tick} />
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-base">Electrical summary</CardTitle>
-                <CardDescription>Per-string measurements at this instant</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {snap.strings.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-foreground">{s.id}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {s.voltage} V · {s.current} A ·{" "}
-                      {(s.panels.reduce((a, p) => a + p.power, 0) / 1000).toFixed(2)} kW
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-base">Electrical summary</CardTitle>
+              <CardDescription>Per-row measurements at this instant</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {snap.strings.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-foreground">{s.id}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {s.voltage} V · {s.current} A ·{" "}
+                    {(s.panels.reduce((a, p) => a + p.power, 0) / 1000).toFixed(2)} kW
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
 
         <PredictiveCenter snap={snap} />

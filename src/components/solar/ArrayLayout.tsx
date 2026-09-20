@@ -127,10 +127,10 @@ export function ArrayLayout({ snap }: { snap: Snapshot }) {
                         type="button"
                         onClick={() => setSelectedPanel(p)}
                         aria-label={`Open diagnostics for panel ${p.id}`}
-                        className={`group relative flex aspect-[1.65/1] min-h-24 flex-col justify-between overflow-hidden rounded-md border p-3 text-left transition-transform hover:-translate-y-0.5 ${statusStyles[p.status]}`}
+                        className={`group relative flex aspect-[1.65/1] min-h-28 flex-col justify-between overflow-hidden rounded-md border p-3 text-left transition-transform hover:-translate-y-0.5 ${statusStyles[p.status]}`}
                       >
                         <span className="absolute inset-0 opacity-15 [background-image:linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] [background-size:25%_50%]" />
-                        <span className="relative flex w-full items-start justify-between gap-2"><strong className="font-display text-sm">{p.id}</strong><Badge variant="outline" className="max-w-[70%] text-[9px] leading-tight">{statusLabels[p.status]}</Badge></span>
+                        <span className="relative flex w-full flex-col items-start gap-1.5"><strong className="font-display text-sm">{p.id}</strong><Badge variant="outline" className="whitespace-normal text-left text-[9px] leading-tight">{statusLabels[p.status]}</Badge></span>
                         <span className="relative flex w-full items-end justify-between"><span className="font-mono text-sm font-semibold">{Math.round(p.power)} W</span><span className="text-[10px] opacity-80">{p.temp} °C</span></span>
                       </button>
                     </TooltipTrigger>
