@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, CloudOff, Flame, Gauge, Sparkles, Sun, Thermometer, Zap } from "lucide-react";
+import { CloudOff, Flame, Sparkles, Sun, Thermometer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
