@@ -9,6 +9,7 @@ import { AlertsDrawer } from "@/components/solar/AlertsDrawer";
 import { ArrayLayout } from "@/components/solar/ArrayLayout";
 import { PredictiveCenter } from "@/components/solar/PredictiveCenter";
 import { SummaryCards } from "@/components/solar/SummaryCards";
+import { SoilingDiagnostics } from "@/components/solar/SoilingDiagnostics";
 import { TelemetryCharts } from "@/components/solar/TelemetryCharts";
 import { useAuth } from "@/lib/auth";
 import { buildSnapshot } from "@/lib/solar-data";
@@ -24,10 +25,12 @@ export const Route = createFileRoute("/dashboard")({
           "Live solar telemetry, shading analysis, hotspot detection and predictive component diagnostics for your array.",
       },
       { property: "og:title", content: "Monitoring Dashboard — SolarSense" },
+      { property: "og:type", content: "website" },
       {
         property: "og:description",
         content: "Panel-level solar monitoring with predictive maintenance insights.",
       },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,
@@ -119,34 +122,37 @@ function Dashboard() {
 
         <SummaryCards snap={snap} />
 
+        <ArrayLayout snap={snap} />
+
         <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-          <ArrayLayout snap={snap} />
           <div className="space-y-6">
             <TelemetryCharts tick={tick} />
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-base">Electrical summary</CardTitle>
-                <CardDescription>Per-string measurements at this instant</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {snap.strings.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-foreground">{s.id}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {s.voltage} V · {s.current} A ·{" "}
-                      {(s.panels.reduce((a, p) => a + p.power, 0) / 1000).toFixed(2)} kW
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-base">Electrical summary</CardTitle>
+              <CardDescription>Per-row measurements at this instant</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {snap.strings.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-foreground">{s.id}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {s.voltage} V · {s.current} A ·{" "}
+                    {(s.panels.reduce((a, p) => a + p.power, 0) / 1000).toFixed(2)} kW
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
 
         <PredictiveCenter snap={snap} />
+
+        <SoilingDiagnostics snap={snap} />
 
         <p className="pb-8 text-center text-xs text-muted-foreground">
           Simulated plant data for academic demonstration · SolarSense predictive maintenance

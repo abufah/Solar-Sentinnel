@@ -14,7 +14,7 @@ const CLIENTS: Record<string, { password: string; client: Client }> = {
       email: "demo@solarsense.io",
       name: "Demo Evaluator",
       site: "Campus Rooftop Array — Block C",
-      capacityKw: 12.5,
+      capacityKw: 4,
     },
   },
   "client@greenfield.in": {
@@ -23,7 +23,7 @@ const CLIENTS: Record<string, { password: string; client: Client }> = {
       email: "client@greenfield.in",
       name: "Greenfield Industries",
       site: "Greenfield Plant — Shed 2",
-      capacityKw: 48,
+      capacityKw: 4,
     },
   },
 };

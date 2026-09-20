@@ -32,6 +32,12 @@ function AlertRow({ alert }: { alert: Alert }) {
         </Badge>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">{alert.detail}</p>
+      <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+        <span className="font-medium text-foreground">Affected</span>
+        <span className="text-muted-foreground">{alert.affectedPanel}</span>
+        <span className="font-medium text-foreground">Root cause</span>
+        <span className="text-muted-foreground">{alert.rootCause}</span>
+      </div>
       <p className="mt-3 text-xs font-medium text-foreground">Recommended action</p>
       <p className="text-xs text-muted-foreground">{alert.action}</p>
       <p className="mt-2 text-[11px] text-muted-foreground">{alert.at}</p>

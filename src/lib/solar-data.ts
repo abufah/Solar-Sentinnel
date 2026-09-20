@@ -3,11 +3,22 @@
 export type Panel = {
   id: string;
   string: string;
+  row: number;
   power: number; // W
+  voltage: number; // V
+  current: number; // A
+  efficiency: number; // %
   temp: number; // °C
   shaded: boolean;
   hotspot: boolean;
-  status: "optimal" | "shaded" | "fault";
+  shadingLossPct: number;
+  shadingCause: string;
+  soilingIndex: number;
+  health: number;
+  bypassDiode: "Normal" | "Degraded" | "Malfunction";
+  connectorImpedance: number;
+  cellDegradation: number;
+  status: "optimal" | "shaded" | "dust" | "fault";
 };
 
 export type StringInfo = {
@@ -24,6 +35,8 @@ export type Alert = {
   title: string;
   detail: string;
   action: string;
+  affectedPanel: string;
+  rootCause: string;
   at: string;
 };
 
@@ -60,10 +73,14 @@ export type Snapshot = {
   components: Component[];
   shadedZones: string[];
   shadingLossKw: number;
+  soilingLossPct: number;
+  cleaningUrgency: "Low" | "Medium" | "High";
+  energyRecoveryKwh: number;
 };
 
-const SHADED = new Set(["B-3", "B-4", "C-6"]);
-const HOTSPOTS = new Set(["C-6"]);
+const SHADED = new Set(["P-03"]);
+const DUSTY = new Set(["P-06", "P-07"]);
+const HOTSPOTS = new Set(["P-08"]);
 
 export function buildSnapshot(tick: number): Snapshot {
   const rand = seeded(tick * 7919 + 13);
@@ -73,81 +90,109 @@ export function buildSnapshot(tick: number): Snapshot {
   const ambientTemp = +(24 + 8 * daylight + rand() * 1.2).toFixed(1);
   const panelTemp = +(ambientTemp + 0.028 * irradiance + rand() * 1.5).toFixed(1);
 
-  const strings: StringInfo[] = ["A", "B", "C"].map((sid, si) => {
-    const panels: Panel[] = Array.from({ length: 8 }, (_, i) => {
-      const id = `${sid}-${i + 1}`;
+  const strings: StringInfo[] = ["Row 1", "Row 2"].map((sid, si) => {
+    const panels: Panel[] = Array.from({ length: 4 }, (_, i) => {
+      const panelNumber = si * 4 + i + 1;
+      const id = `P-${String(panelNumber).padStart(2, "0")}`;
       const shaded = SHADED.has(id);
+      const dusty = DUSTY.has(id);
       const hotspot = HOTSPOTS.has(id);
-      const base = 0.33 * irradiance * (1 - 0.004 * Math.max(0, panelTemp - 25));
-      const power = +(base * (shaded ? 0.42 : 1) * (hotspot ? 0.72 : 1) * (0.97 + rand() * 0.06)).toFixed(1);
+      const temperatureFactor = 1 - 0.0035 * Math.max(0, panelTemp - 25);
+      const conditionFactor = shaded ? 0.64 : dusty ? 0.91 : hotspot ? 0.72 : 1;
+      const voltage = +(40.8 - 0.11 * (panelTemp - 25) + rand() * 0.35).toFixed(1);
+      const current = +(12.2 * daylight * conditionFactor * temperatureFactor * (0.98 + rand() * 0.04)).toFixed(2);
+      const power = +(voltage * current).toFixed(1);
+      const shadingLossPct = shaded ? 36 : hotspot ? 8 : dusty ? 2 : 0;
+      const soilingIndex = dusty ? (id === "P-06" ? 13.4 : 10.8) : +(2.2 + rand() * 2.2).toFixed(1);
       return {
         id,
         string: sid,
+        row: si + 1,
         power,
-        temp: +(panelTemp + (shaded ? -2.4 : 0) + (hotspot ? 14 : 0) + rand() * 1.4).toFixed(1),
+        voltage,
+        current,
+        efficiency: +(21.4 * conditionFactor * temperatureFactor).toFixed(1),
+        temp: +(panelTemp + (shaded ? -2.4 : 0) + (hotspot ? 15.2 : 0) + rand() * 1.4).toFixed(1),
         shaded,
         hotspot,
-        status: hotspot ? "fault" : shaded ? "shaded" : "optimal",
+        shadingLossPct,
+        shadingCause: shaded
+          ? "Partial shadow from the south-east parapet"
+          : "No persistent obstruction detected",
+        soilingIndex,
+        health: hotspot ? 54 : shaded ? 78 : dusty ? 82 : Math.round(94 + rand() * 4),
+        bypassDiode: hotspot ? "Malfunction" : id === "P-03" ? "Degraded" : "Normal",
+        connectorImpedance: +(hotspot ? 8.7 : id === "P-07" ? 5.1 : 2.3 + rand()).toFixed(1),
+        cellDegradation: +(hotspot ? 4.8 : 0.5 + rand() * 0.8).toFixed(1),
+        status: hotspot ? "fault" : shaded ? "shaded" : dusty ? "dust" : "optimal",
       };
     });
-    const nominal = panels.length * 0.33 * irradiance;
+    const nominal = panels.length * 0.5 * irradiance;
     const actual = panels.reduce((a, p) => a + p.power, 0);
     return {
-      id: `String ${sid}`,
+      id: sid,
       panels,
       shadingLossPct: +Math.max(0, ((nominal - actual) / nominal) * 100).toFixed(1),
-      voltage: +(38.4 - 0.12 * (panelTemp - 25) + si * 0.4 + rand() * 0.6).toFixed(1),
-      current: +(actual / (38.4 + si * 0.4)).toFixed(2),
+      voltage: +panels.reduce((sum, panel) => sum + panel.voltage, 0).toFixed(1),
+      current: +(actual / panels.reduce((sum, panel) => sum + panel.voltage, 0)).toFixed(2),
     };
   });
 
   const power = +(strings.reduce((a, s) => a + s.panels.reduce((b, p) => b + p.power, 0), 0) / 1000).toFixed(2);
   const voltage = +(strings.reduce((a, s) => a + s.voltage, 0) / strings.length).toFixed(1);
   const current = +strings.reduce((a, s) => a + s.current, 0).toFixed(2);
-  const nominalTotal = 24 * 0.33 * irradiance / 1000;
+  const nominalTotal = 8 * 0.5 * irradiance / 1000;
 
   const components: Component[] = [
-    { name: "Inverter (Main MPPT)", health: 92, rulDays: 540, risk: "low", note: "Efficiency 97.4%, no derating events" },
-    { name: "Bypass Diodes — String C", health: 58, rulDays: 46, risk: "high", note: "Reverse leakage rising on panel C-6" },
-    { name: "DC Cabling & Connectors", health: 81, rulDays: 310, risk: "medium", note: "Slight resistance drift at String B junction" },
-    { name: "PV Cells (Array average)", health: 88, rulDays: 1620, risk: "low", note: "Degradation 0.52%/yr, within warranty curve" },
+    { name: "Inverter MPPT Channel 2", health: 64, rulDays: 72, risk: "high", note: "Intermittent tracking deviation affects Row 2 during peak irradiance" },
+    { name: "Bypass Diode — P-08", health: 54, rulDays: 28, risk: "high", note: "Forward-voltage imbalance aligns with the localized hotspot" },
+    { name: "DC Connectors", health: 82, rulDays: 320, risk: "medium", note: "Elevated impedance measured at panel P-07 connector" },
+    { name: "PV Cells — Array Average", health: 90, rulDays: 1580, risk: "low", note: "Average degradation remains within the module warranty curve" },
   ];
 
   const healthScore = Math.round(components.reduce((a, c) => a + c.health, 0) / components.length);
 
-  const stringBLoss = strings[1]?.shadingLossPct ?? 0;
+  const rowOneLoss = strings[0]?.shadingLossPct ?? 0;
 
   const alerts: Alert[] = [
     {
       id: "a1",
       severity: "critical",
-      title: "Hotspot detected — Panel C-6",
-      detail: `Cell temperature ${(panelTemp + 14).toFixed(1)} °C, ${(panelTemp + 14 - panelTemp).toFixed(0)} °C above array mean. Bypass diode leakage confirmed.`,
+      title: "Localized hotspot and diode fault",
+      detail: `P-08 is operating at ${(panelTemp + 15.2).toFixed(1)} °C, 15 °C above the array mean. Continued operation can accelerate cell damage.`,
       action: "Schedule on-site thermal inspection and replace bypass diode within 7 days.",
+      affectedPanel: "P-08",
+      rootCause: "Bypass diode forward-voltage imbalance is concentrating heat in one cell group.",
       at: "Today 11:42",
     },
     {
       id: "a2",
       severity: "warning",
-      title: "Partial shading — String B (panels B-3, B-4)",
-      detail: `Sustained shading pattern detected, ${stringBLoss}% string loss during peak window.`,
+      title: "Partial shading detected",
+      detail: `P-03 has a sustained shadow pattern, contributing to ${rowOneLoss}% loss across Row 1.`,
       action: "Trim vegetation / verify new obstruction near south-east edge.",
+      affectedPanel: "P-03",
+      rootCause: "The south-east parapet casts a partial shadow during the late-morning peak window.",
       at: "Today 10:15",
     },
     {
       id: "a3",
       severity: "warning",
-      title: "Connector resistance drift — String B junction box",
-      detail: "Series resistance up 8.6% over 30 days, predicted fault window in 42 days.",
+      title: "Connector resistance drift",
+      detail: "P-07 connector impedance is 5.1 mΩ and has risen 8.6% over 30 days.",
       action: "Re-torque MC4 connectors during next preventive visit.",
+      affectedPanel: "P-07",
+      rootCause: "A slightly loose or oxidized MC4 contact is increasing series resistance.",
       at: "Yesterday 16:05",
     },
     {
       id: "a4",
       severity: "info",
-      title: "Soiling loss estimate 3.1%",
-      detail: "No rainfall in 11 days; irradiance-to-yield ratio trending down.",
-      action: "Plan module cleaning in the next maintenance cycle.",
+      title: "Dust accumulation above threshold",
+      detail: "P-06 and P-07 show elevated soiling after 11 dry days; array loss is estimated at 6.2%.",
+      action: "Wash Row 2 within 3 days to recover approximately 1.4 kWh per day.",
+      affectedPanel: "P-06, P-07",
+      rootCause: "Dry weather and wind-blown dust have formed a non-uniform layer on Row 2.",
       at: "Yesterday 08:30",
     },
     {
@@ -156,6 +201,8 @@ export function buildSnapshot(tick: number): Snapshot {
       title: "Inverter firmware up to date",
       detail: "Version 3.4.1 verified, MPPT tracking nominal.",
       action: "No action required.",
+      affectedPanel: "Plant inverter",
+      rootCause: "Scheduled firmware verification completed successfully.",
       at: "2 days ago",
     },
   ];
@@ -164,8 +211,8 @@ export function buildSnapshot(tick: number): Snapshot {
     voltage,
     current,
     power,
-    yieldToday: +(power * 5.4).toFixed(1),
-    yieldTotal: 18742,
+    yieldToday: +(power * 4.9).toFixed(1),
+    yieldTotal: 6842,
     panelTemp,
     ambientTemp,
     irradiance,
@@ -177,6 +224,9 @@ export function buildSnapshot(tick: number): Snapshot {
     components,
     shadedZones: [...SHADED],
     shadingLossKw: +Math.max(0, nominalTotal - power).toFixed(2),
+    soilingLossPct: 6.2,
+    cleaningUrgency: "High",
+    energyRecoveryKwh: 1.4,
   };
 }
 
@@ -189,17 +239,17 @@ export function powerSeries(tick: number) {
     const temp = +(25 + 9 * daylight + rand() * 1.5).toFixed(1);
     return {
       time: `${String(Math.floor(hour)).padStart(2, "0")}:${hour % 1 ? "30" : "00"}`,
-      power: +((irradiance * 0.0079) * (1 - 0.004 * Math.max(0, temp - 25))).toFixed(2),
+      power: +((irradiance * 0.00362) * (1 - 0.0035 * Math.max(0, temp - 25))).toFixed(2),
       irradiance,
       temp,
-      predicted: +((irradiance * 0.0082)).toFixed(2),
+      predicted: +((irradiance * 0.00395)).toFixed(2),
     };
   }).map((d, i) => (i === 23 ? { ...d, power: +(d.power * (0.97 + (tick % 5) * 0.01)).toFixed(2) } : d));
 }
 
 export function ivCurve(shaded: boolean) {
-  const voc = 44.2;
-  const isc = shaded ? 5.1 : 8.7;
+  const voc = 168;
+  const isc = shaded ? 7.1 : 11.8;
   return Array.from({ length: 20 }, (_, i) => {
     const v = +((voc / 19) * i).toFixed(1);
     const raw = isc * (1 - Math.pow(v / voc, 6.5));
