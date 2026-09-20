@@ -9,6 +9,7 @@ import { AlertsDrawer } from "@/components/solar/AlertsDrawer";
 import { ArrayLayout } from "@/components/solar/ArrayLayout";
 import { PredictiveCenter } from "@/components/solar/PredictiveCenter";
 import { SummaryCards } from "@/components/solar/SummaryCards";
+import { SoilingDiagnostics } from "@/components/solar/SoilingDiagnostics";
 import { TelemetryCharts } from "@/components/solar/TelemetryCharts";
 import { useAuth } from "@/lib/auth";
 import { buildSnapshot } from "@/lib/solar-data";
@@ -24,10 +25,12 @@ export const Route = createFileRoute("/dashboard")({
           "Live solar telemetry, shading analysis, hotspot detection and predictive component diagnostics for your array.",
       },
       { property: "og:title", content: "Monitoring Dashboard — SolarSense" },
+      { property: "og:type", content: "website" },
       {
         property: "og:description",
         content: "Panel-level solar monitoring with predictive maintenance insights.",
       },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,
@@ -147,6 +150,8 @@ function Dashboard() {
         </div>
 
         <PredictiveCenter snap={snap} />
+
+        <SoilingDiagnostics snap={snap} />
 
         <p className="pb-8 text-center text-xs text-muted-foreground">
           Simulated plant data for academic demonstration · SolarSense predictive maintenance

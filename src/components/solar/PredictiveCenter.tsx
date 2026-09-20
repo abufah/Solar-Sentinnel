@@ -24,9 +24,9 @@ export function PredictiveCenter({ snap }: { snap: Snapshot }) {
       </CardHeader>
       <CardContent className="grid gap-4 lg:grid-cols-2">
         {snap.components.map((c, i) => {
-          const Icon = icons[i % icons.length]!;
+          const Icon = icons[i % icons.length] ?? Cpu;
           return (
-            <div key={c.name} className="rounded-xl border border-border bg-surface/60 p-5">
+            <div key={c.name} className={`rounded-lg border bg-surface/60 p-5 ${c.risk === "high" ? "border-critical/50" : "border-border"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Icon className="size-4 text-primary" />

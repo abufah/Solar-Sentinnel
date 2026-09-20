@@ -19,10 +19,12 @@ export const Route = createFileRoute("/")({
           "Sign in to monitor your solar array: live electrical telemetry, shading analysis, hotspot detection and predictive component diagnostics.",
       },
       { property: "og:title", content: "Client Login — SolarSense Predictive Maintenance" },
+      { property: "og:type", content: "website" },
       {
         property: "og:description",
         content: "Secure client portal for solar PV monitoring and predictive maintenance.",
       },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: LoginPage,
