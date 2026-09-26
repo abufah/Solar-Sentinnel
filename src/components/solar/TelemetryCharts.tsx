@@ -30,7 +30,7 @@ const tooltipStyle = {
 type Series = ReturnType<typeof powerSeries>;
 type IvOverride = { labels: { healthy: string; shaded: string }; data: { v: number; healthy: number; shaded: number; power: number }[] };
 
-export function TelemetryCharts({ tick, series: seriesOverride, iv: ivOverride }: { tick: number; series?: Series; iv?: IvOverride }) {
+export function TelemetryCharts({ tick, series: seriesOverride, iv: ivOverride }: { tick: number; series?: Series | undefined; iv?: IvOverride | undefined }) {
   const series = seriesOverride ?? powerSeries(tick);
   const healthy = ivCurve(false);
   const shaded = ivCurve(true);
