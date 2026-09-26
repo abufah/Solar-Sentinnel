@@ -27,16 +27,20 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
-export function TelemetryCharts({ tick }: { tick: number }) {
-  const series = powerSeries(tick);
+type Series = ReturnType<typeof powerSeries>;
+type IvOverride = { labels: { healthy: string; shaded: string }; data: { v: number; healthy: number; shaded: number; power: number }[] };
+
+export function TelemetryCharts({ tick, series: seriesOverride, iv: ivOverride }: { tick: number; series?: Series; iv?: IvOverride }) {
+  const series = seriesOverride ?? powerSeries(tick);
   const healthy = ivCurve(false);
   const shaded = ivCurve(true);
-  const iv = healthy.map((h, i) => ({
+  const iv = ivOverride?.data ?? healthy.map((h, i) => ({
     v: h.v,
     healthy: h.current,
     shaded: shaded[i]?.current ?? 0,
     power: h.power,
   }));
+  const ivLabels = ivOverride?.labels ?? { healthy: "Healthy string", shaded: "Shaded string (B)" };
 
   return (
     <Card>
@@ -99,7 +103,7 @@ export function TelemetryCharts({ tick }: { tick: number }) {
                 <Line
                   type="monotone"
                   dataKey="healthy"
-                  name="Healthy string"
+                  name={ivLabels.healthy}
                   stroke="var(--success)"
                   dot={false}
                   strokeWidth={2}
@@ -107,7 +111,7 @@ export function TelemetryCharts({ tick }: { tick: number }) {
                 <Line
                   type="monotone"
                   dataKey="shaded"
-                  name="Shaded string (B)"
+                  name={ivLabels.shaded}
                   stroke="var(--critical)"
                   dot={false}
                   strokeWidth={2}

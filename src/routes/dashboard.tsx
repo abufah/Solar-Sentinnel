@@ -13,6 +13,9 @@ import { SoilingDiagnostics } from "@/components/solar/SoilingDiagnostics";
 import { TelemetryCharts } from "@/components/solar/TelemetryCharts";
 import { useAuth } from "@/lib/auth";
 import { buildSnapshot } from "@/lib/solar-data";
+import { ImportTelemetry } from "@/components/solar/ImportTelemetry";
+import { buildImportedSnapshot, ivFromSnapshot, seriesFromRows, type ImportedDataset } from "@/lib/telemetry-import";
+import { FileSpreadsheet, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   ssr: false,
@@ -40,6 +43,7 @@ function Dashboard() {
   const { client, ready, signOut } = useAuth();
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
+  const [dataset, setDataset] = useState<ImportedDataset | null>(null);
 
   useEffect(() => {
     if (ready && !client) navigate({ to: "/", replace: true });
@@ -58,7 +62,9 @@ function Dashboard() {
     );
   }
 
-  const snap = buildSnapshot(tick);
+  const snap = dataset ? buildImportedSnapshot(dataset) : buildSnapshot(tick);
+  const importedSeries = dataset ? seriesFromRows(dataset.rows) : undefined;
+  const importedIv = dataset ? ivFromSnapshot(snap) : undefined;
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,9 +84,16 @@ function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-medium text-success">
-              <Radio className="size-3.5 animate-pulse" /> Live
-            </span>
+            <ImportTelemetry onImport={setDataset} />
+            {dataset ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-solar/40 bg-solar/10 px-3 py-1 text-xs font-medium text-solar">
+                <FileSpreadsheet className="size-3.5" /> Imported
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                <Radio className="size-3.5 animate-pulse" /> Live
+              </span>
+            )}
             <AlertsDrawer snap={snap} />
             <Button
               variant="ghost"
@@ -98,13 +111,25 @@ function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+        {dataset && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-solar/40 bg-solar/10 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-foreground">
+              <FileSpreadsheet className="size-4 text-solar" />
+              Displaying Imported Dataset: <strong className="font-mono">{dataset.filename}</strong>
+              <span className="text-muted-foreground">· {dataset.rows.length} readings</span>
+            </p>
+            <Button size="sm" variant="outline" onClick={() => setDataset(null)}>
+              <RotateCcw className="size-4" /> Reset to Live Simulation
+            </Button>
+          </div>
+        )}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">
               Predictive maintenance overview
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Telemetry refreshing every 4 seconds · Yield to date {snap.yieldTotal.toLocaleString()} kWh
+              {dataset ? `Imported readings · Energy across dataset ${snap.yieldToday} kWh` : `Telemetry refreshing every 4 seconds · Yield to date ${snap.yieldTotal.toLocaleString()} kWh`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -126,7 +151,7 @@ function Dashboard() {
 
         <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
           <div className="space-y-6">
-            <TelemetryCharts tick={tick} />
+            <TelemetryCharts tick={tick} series={importedSeries} iv={importedIv} />
           </div>
           <Card>
             <CardHeader>
