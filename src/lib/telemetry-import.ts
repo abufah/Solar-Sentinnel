@@ -48,7 +48,7 @@ export function parseTelemetry(text: string, filename: string): TelemetryRow[] {
   } else {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     if (lines.length < 2) throw new Error("CSV has no data rows");
-    const head = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const head = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
     const missing = HEADERS.slice(0, 5).filter((h) => !head.includes(h));
     if (missing.length) throw new Error(`Missing column(s): ${missing.join(", ")}`);
     raw = lines.slice(1).map((l) => {
@@ -61,7 +61,7 @@ export function parseTelemetry(text: string, filename: string): TelemetryRow[] {
     const res = rowSchema.safeParse(r);
     if (!res.success) {
       const issue = res.error.issues[0];
-      throw new Error(`Row ${i + 1}: invalid "${issue.path.join(".")}"`);
+      throw new Error(`Row ${i + 1}: invalid "${issue?.path.join(".") ?? "value"}"`);
     }
     return { ...res.data, panel_id: normalizeId(res.data.panel_id) };
   });
@@ -133,7 +133,7 @@ export function buildImportedSnapshot(ds: ImportedDataset): Snapshot {
   const avgTemp = temps.length ? +(temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) : 0;
   const peakTemp = temps.length ? Math.max(...temps) : 0;
   const avgSoil = panelsAll.reduce((a, p) => a + p.soilingIndex, 0) / 8;
-  const worst = [...panelsAll].sort((a, b) => a.health - b.health)[0];
+  const worst = [...panelsAll].sort((a, b) => a.health - b.health)[0]!;
   const components: Component[] = [
     { name: "Inverter MPPT", health: power > 2 ? 90 : 70, rulDays: power > 2 ? 600 : 180, risk: power > 2 ? "low" : "medium", note: `Array output ${power} kW from imported readings` },
     { name: "Bypass Diodes", health: Math.round(100 - panelsAll.filter((p) => p.bypassDiode !== "Normal").length * 15), rulDays: 90, risk: panelsAll.some((p) => p.bypassDiode === "Malfunction") ? "high" : panelsAll.some((p) => p.bypassDiode === "Degraded") ? "medium" : "low", note: "Inferred from low voltage and over-temperature panels" },
@@ -146,8 +146,8 @@ export function buildImportedSnapshot(ds: ImportedDataset): Snapshot {
   alerts.sort((a, b) => order[a.severity] - order[b.severity]);
 
   return {
-    voltage: +((strings[0].voltage + strings[1].voltage) / 2).toFixed(1),
-    current: +(strings[0].current + strings[1].current).toFixed(2),
+    voltage: +((strings[0]!.voltage + strings[1]!.voltage) / 2).toFixed(1),
+    current: +(strings[0]!.current + strings[1]!.current).toFixed(2),
     power,
     yieldToday: +(seriesFromRows(ds.rows).reduce((a, s) => a + s.power, 0)).toFixed(1),
     yieldTotal: 0,
@@ -179,8 +179,8 @@ export function seriesFromRows(rows: TelemetryRow[]) {
 
 export function ivFromSnapshot(snap: Snapshot) {
   const panels = snap.strings.flatMap((s) => s.panels);
-  const best = [...panels].sort((a, b) => b.power - a.power)[0];
-  const worst = [...panels].sort((a, b) => a.power - b.power)[0];
+  const best = [...panels].sort((a, b) => b.power - a.power)[0]!;
+  const worst = [...panels].sort((a, b) => a.power - b.power)[0]!;
   const curve = (p: Panel) => {
     const voc = Math.max(1, p.voltage * 1.22);
     const isc = p.current * 1.07;

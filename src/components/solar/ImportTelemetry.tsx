@@ -19,8 +19,8 @@ export function ImportTelemetry({ onImport }: { onImport: (ds: ImportedDataset) 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    if (!/\.(csv|json)$/i.test(file.name)) return toast.error("Please upload a .csv or .json file");
-    if (file.size > 5 * 1024 * 1024) return toast.error("File is larger than 5 MB");
+    if (!/\.(csv|json)$/i.test(file.name)) { toast.error("Please upload a .csv or .json file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("File is larger than 5 MB"); return; }
     try {
       const rows = parseTelemetry(await file.text(), file.name);
       onImport({ filename: file.name, rows });
