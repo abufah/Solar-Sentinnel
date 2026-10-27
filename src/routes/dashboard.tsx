@@ -14,8 +14,16 @@ import { TelemetryCharts } from "@/components/solar/TelemetryCharts";
 import { useAuth } from "@/lib/auth";
 import { buildSnapshot } from "@/lib/solar-data";
 import { ImportTelemetry } from "@/components/solar/ImportTelemetry";
-import { buildImportedSnapshot, ivFromSnapshot, seriesFromRows, type ImportedDataset } from "@/lib/telemetry-import";
+import { AccountSettingsDialog } from "@/components/solar/AccountSettingsDialog";
+import {
+  buildImportedSnapshot,
+  ivFromSnapshot,
+  seriesFromRows,
+  type ImportedDataset,
+} from "@/lib/telemetry-import";
 import { FileSpreadsheet, RotateCcw } from "lucide-react";
+
+import { ModernLoader, PulseIndicator } from "@/components/ui/ModernLoader";
 
 export const Route = createFileRoute("/dashboard")({
   ssr: false,
@@ -56,8 +64,12 @@ function Dashboard() {
 
   if (!ready || !client) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading your array…</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+        <ModernLoader
+          size="lg"
+          label="Connecting to Solar Array"
+          sublabel="Synchronizing telemetry stream & cell diagnostics…"
+        />
       </div>
     );
   }
@@ -86,20 +98,21 @@ function Dashboard() {
           <div className="flex items-center gap-2">
             <ImportTelemetry onImport={setDataset} />
             {dataset ? (
-              <span className="flex items-center gap-1.5 rounded-full border border-solar/40 bg-solar/10 px-3 py-1 text-xs font-medium text-solar">
+              <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
                 <FileSpreadsheet className="size-3.5" /> Imported
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                <Radio className="size-3.5 animate-pulse" /> Live
+              <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                <PulseIndicator active label="Live Telemetry" />
               </span>
             )}
             <AlertsDrawer snap={snap} />
+            <AccountSettingsDialog />
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                signOut();
+              onClick={async () => {
+                await signOut();
                 navigate({ to: "/", replace: true });
               }}
             >
@@ -129,7 +142,9 @@ function Dashboard() {
               Predictive maintenance overview
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {dataset ? `Imported readings · Energy across dataset ${snap.yieldToday} kWh` : `Telemetry refreshing every 4 seconds · Yield to date ${snap.yieldTotal.toLocaleString()} kWh`}
+              {dataset
+                ? `Imported readings · Energy across dataset ${snap.yieldToday} kWh`
+                : `Telemetry refreshing every 4 seconds · Yield to date ${snap.yieldTotal.toLocaleString()} kWh`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">

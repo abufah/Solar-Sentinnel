@@ -1,76 +1,180 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  getCurrentUser,
+  signInServerFn,
+  signUpServerFn,
+  signOutServerFn,
+  updateProfileServerFn,
+  type SafeUser,
+} from "@/backend/auth-actions";
 
 export type Client = {
+  id: string;
   email: string;
   name: string;
   site: string;
   capacityKw: number;
-};
-
-const CLIENTS: Record<string, { password: string; client: Client }> = {
-  "demo@solarsense.io": {
-    password: "demo1234",
-    client: {
-      email: "demo@solarsense.io",
-      name: "Demo Evaluator",
-      site: "Campus Rooftop Array — Block C",
-      capacityKw: 4,
-    },
-  },
-  "client@greenfield.in": {
-    password: "green1234",
-    client: {
-      email: "client@greenfield.in",
-      name: "Greenfield Industries",
-      site: "Greenfield Plant — Shed 2",
-      capacityKw: 4,
-    },
-  },
+  role: "admin" | "client";
+  createdAt?: string;
 };
 
 export const DEMO_CREDENTIALS = { email: "demo@solarsense.io", password: "demo1234" };
 
-const STORAGE_KEY = "solarsense.session";
+const STORAGE_CACHE_KEY = "solarsense.session.cache";
 
 type AuthValue = {
   client: Client | null;
   ready: boolean;
-  signIn: (email: string, password: string) => { ok: boolean; error?: string };
-  signOut: () => void;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signUp: (data: {
+    email: string;
+    password: string;
+    name: string;
+    site?: string;
+    capacityKw?: number;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  signOut: () => Promise<void>;
+  updateProfile: (updates: {
+    name?: string;
+    site?: string;
+    capacityKw?: number;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<Client | null>(() => {
+    // Optimistic hydration cache from localStorage for instant rendering
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_CACHE_KEY);
+        if (raw) return JSON.parse(raw) as Client;
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
+  });
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
+  // Sync with real backend HTTP-only cookie session
+  const refreshUser = useCallback(async () => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setClient(JSON.parse(raw) as Client);
+      const res = await getCurrentUser();
+      if (res?.user) {
+        setClient(res.user);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(res.user));
+        }
+      } else {
+        setClient(null);
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(STORAGE_CACHE_KEY);
+        }
+      }
+    } catch (err) {
+      console.warn("Backend session check:", err);
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await signInServerFn({ data: { email, password } });
+      if (!res.ok || !res.user) {
+        return { ok: false, error: res.error ?? "Invalid credentials" };
+      }
+      setClient(res.user);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(res.user));
+      }
+      return { ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error during sign-in";
+      return { ok: false, error: msg };
+    }
+  }, []);
+
+  const signUp = useCallback(
+    async (data: {
+      email: string;
+      password: string;
+      name: string;
+      site?: string;
+      capacityKw?: number;
+    }) => {
+      try {
+        const res = await signUpServerFn({ data });
+        if (!res.ok || !res.user) {
+          return { ok: false, error: res.error ?? "Registration failed" };
+        }
+        setClient(res.user);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(res.user));
+        }
+        return { ok: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Network error during registration";
+        return { ok: false, error: msg };
+      }
+    },
+    [],
+  );
+
+  const signOut = useCallback(async () => {
+    try {
+      await signOutServerFn();
     } catch {
       /* ignore */
+    } finally {
+      setClient(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(STORAGE_CACHE_KEY);
+      }
     }
-    setReady(true);
   }, []);
 
-  const signIn = useCallback((email: string, password: string) => {
-    const record = CLIENTS[email.trim().toLowerCase()];
-    if (!record || record.password !== password) {
-      return { ok: false, error: "Invalid credentials. Try the demo login." };
-    }
-    setClient(record.client);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record.client));
-    return { ok: true };
-  }, []);
+  const updateProfile = useCallback(
+    async (updates: { name?: string; site?: string; capacityKw?: number }) => {
+      try {
+        const res = await updateProfileServerFn({ data: updates });
+        if (!res.ok || !res.user) {
+          return { ok: false, error: res.error ?? "Update failed" };
+        }
+        setClient(res.user);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(res.user));
+        }
+        return { ok: true };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Network error during update",
+        };
+      }
+    },
+    [],
+  );
 
-  const signOut = useCallback(() => {
-    setClient(null);
-    window.localStorage.removeItem(STORAGE_KEY);
-  }, []);
-
-  const value = useMemo(() => ({ client, ready, signIn, signOut }), [client, ready, signIn, signOut]);
+  const value = useMemo(
+    () => ({
+      client,
+      ready,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile,
+      refreshUser,
+    }),
+    [client, ready, signIn, signUp, signOut, updateProfile, refreshUser],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
